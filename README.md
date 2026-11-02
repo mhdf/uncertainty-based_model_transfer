@@ -70,13 +70,15 @@ Two details were needed to obtain the same samples:
 - **Start of k-means.** scikit-learn 1.3 changed how k-means starts, which alters some clusters for the same random seed, so `transfer.py` keeps the earlier procedure.
 - **Ties in the comparison without uncertainty.** When a cluster has two samples, both are equally distant from its centroid, so numerical noise decided between them in the original run. Here the first sample is always taken, so that the result does not depend on the computer. This is why 2 steps differ (N content, source 2017, DOY 288 of 2014). They come after the number of samples used for that date and do not enter any published result.
 
-## Differences between the code and the text of the article
+## Known issues in the original analysis
 
-Two behaviours of the original code are kept so that the published values are reproduced, although they differ from what the text suggests.
+Two behaviours of the original code are kept here so that the published values are reproduced.
 
-**Number of PLSR factors of the transferred models.** The factors are meant to minimize the summed RMSE of source and added target samples. In the original code these sums are sorted before the minimum is located, and its position is then used as if they were not sorted (`published_factor_choice` in `transfer.py`). Using the unsorted sums changes 27% of these decisions. At the selected number of samples, RMSE changes between -10% and +5% (-1% on average) and the number of samples changes in 4 of the 15 cases. This comparison covers the transfer with uncertainty only.
+**Number of PLSR factors of the transferred models.** The article does not describe this step. A comment in the original code indicates that the number of factors should give the lowest summed RMSE of source and added target samples. However, these sums are sorted before the minimum is located, and its position is then used as if they were not sorted (`published_factor_choice` in `transfer.py`). This affects the transferred models only, not the baseline models.
 
-**Percentages in Figure 3.** The caption describes the ratio between the RMSE of the optimal and of the selected number of samples. The published values are that ratio for the standard deviation of the RMSE. The RMSE ratio, between 81% and 100%, is in `results/optimal_ratios.csv`. This means the selected number of samples comes closer to the lowest RMSE than the "20-30%" stated in Section 3.1 suggests.
+Using the unsorted sums changes 27% of these decisions. At the selected number of samples, RMSE changes between -10% and +5% (-1% on average), and the number of samples changes in 4 of the 15 cases. The smallest numbers of samples do not change, and selecting samples with uncertainty still gives a lower average RMSE than without it for all 15 cases. The maps (Figures 9 and 10) were not recalculated.
+
+**Percentages in Figure 3.** The caption describes the ratio between the RMSE of the optimal and of the selected number of samples, and the abstract, Results, Discussion and Conclusions state that the optimal RMSE was 20-30% lower. The published values are in fact that ratio for the standard deviation of the RMSE. The RMSE of the optimal number of samples is 0-19% lower (5% on average, and at most 10% in 13 of the 15 cases), as listed in `results/optimal_ratios.csv`. The loss of accuracy is therefore smaller than stated.
 
 ## Citation and license
 
