@@ -79,8 +79,8 @@ def optimal_ratios(case, date_index):
     """Compare the step selected for a target date with the steps of lowest error and spread.
 
     rmse_ratio divides the lowest average RMSE among all steps by the average RMSE of the
-    selected step. std_ratio does the same with the standard deviation of the RMSE, and is
-    the value printed in Figure 3 of the article.
+    selected step. std_ratio does the same with the standard deviation of the RMSE, which is
+    what was printed in Figure 3 of the article.
     """
     steps = case["steps"][date_index]
     means = [np.mean(step["rmse_independent_validation"]) for step in steps]
@@ -169,6 +169,6 @@ def retained_bands_table(baseline_selection, transfer, transfer_selection):
     return pd.DataFrame(rows)
 
 
-def write_csv(table, name):
-    config.RESULTS_DIR.mkdir(exist_ok=True)
-    table.to_csv(config.RESULTS_DIR / f"{name}.csv", index=False, float_format="%.10g")
+def write_csv(table, name, folder=config.RESULTS_DIR):
+    folder.mkdir(parents=True, exist_ok=True)
+    table.to_csv(folder / f"{name}.csv", index=False, float_format="%.10g")

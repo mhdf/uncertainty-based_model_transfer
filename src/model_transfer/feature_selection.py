@@ -29,7 +29,7 @@ def run_baseline_selection(tables, baseline, progress=print):
     return run_baseline(tables, bands=bands, progress=progress)
 
 
-def run_transfer_selection(tables, transfer, cases=None, progress=print):
+def run_transfer_selection(tables, transfer, cases=None, factor_rule=config.FACTOR_RULE, progress=print):
     """Refit each transferred model, at its optimal step, using only the retained bands.
 
     Returns results[dataset][trait][target date].
@@ -60,7 +60,15 @@ def run_transfer_selection(tables, transfer, cases=None, progress=print):
                 for rep, seed in enumerate(seeds_all[trait_index]):
                     oob = plsr.out_of_bag_rows(source, case["calibration"], seed)
                     fitted = fit_repetition(
-                        source, target, case["calibration"], case["validation"], oob, added, unused, bands
+                        source,
+                        target,
+                        case["calibration"],
+                        case["validation"],
+                        oob,
+                        added,
+                        unused,
+                        bands,
+                        factor_rule,
                     )
                     store_repetition(outputs, rep, fitted, oob, case["validation"], added, unused, bands)
                 outputs["bands"] = bands

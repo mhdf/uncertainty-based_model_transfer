@@ -1,4 +1,4 @@
-"""Check the pipeline against the values of the original run saved in tests/expected."""
+"""Check the pipeline against the original run and the statements made in the README."""
 import sys
 import unittest
 import warnings
@@ -14,19 +14,17 @@ from model_transfer import config, summary  # noqa: E402
 from model_transfer.baseline import run_baseline  # noqa: E402
 from model_transfer.data import band_columns, load_tables  # noqa: E402
 from model_transfer.feature_selection import vip_confidence_interval  # noqa: E402
-from model_transfer.transfer import choose_number_of_steps, run_transfer  # noqa: E402
+from model_transfer.transfer import choose_factors, choose_number_of_steps, run_transfer  # noqa: E402
 
 EXPECTED_DIR = ROOT / "tests" / "expected"
+ORIGINAL_DIR = config.RESULTS_DIR / "original_code"
 TOLERANCE = 1e-7
+TEXT_COLUMNS = {"target_date": str, "treatment": str}
 quiet = lambda message: None
 
 
-def expected(name):
-    return pd.read_csv(EXPECTED_DIR / f"{name}.csv", dtype={"target_date": str, "treatment": str})
-
-
-def stored(name):
-    return pd.read_csv(config.RESULTS_DIR / f"{name}.csv", dtype={"target_date": str, "treatment": str})
+def read(folder, name):
+    return pd.read_csv(folder / f"{name}.csv", dtype=TEXT_COLUMNS)
 
 
 class TableAssertions(unittest.TestCase):
@@ -70,9 +68,17 @@ class Criteria(unittest.TestCase):
         self.assertLess(lower[1], 1)
         self.assertTrue((upper >= mean).all())
 
+    def test_factor_rules(self):
+        # Target errors 5, 6 and 4 sort as 6, 5, 4. The lowest sum is at the second factor
+        # number, but it comes first after sorting.
+        rmse_added = [5.0, 6.0, 4.0]
+        rmse_source = [3.0, 1.0, 4.0]
+        self.assertEqual(choose_factors(rmse_source, rmse_added, "corrected"), 1)
+        self.assertEqual(choose_factors(rmse_source, rmse_added, "original"), 0)
+
 
 class Recalculation(TableAssertions):
-    """Repeat the baseline and one transfer case, which takes under a minute."""
+    """Repeat the baseline and one transfer case with each rule, which takes under a minute."""
 
     @classmethod
     def setUpClass(cls):
@@ -80,41 +86,59 @@ class Recalculation(TableAssertions):
         cls.tables = load_tables()
         cls.baseline = run_baseline(cls.tables, progress=quiet)
 
+    def transfer_case(self, factor_rule):
+        results = run_transfer(
+            self.tables, self.baseline, cases={(1, 2)}, factor_rule=factor_rule, progress=quiet
+        )
+        return summary.transfer_steps_table(results).reset_index(drop=True)
+
+    @staticmethod
+    def same_case(table):
+        chosen = (table["source_year"] == 2017) & (table["trait"] == "N_kg_ha")
+        return table[chosen].reset_index(drop=True)
+
     def test_baseline(self):
-        self.assert_same_table(summary.baseline_table(self.tables, self.baseline), expected("baseline"))
+        self.assert_same_table(
+            summary.baseline_table(self.tables, self.baseline), read(EXPECTED_DIR, "baseline")
+        )
 
-    def test_transfer_case(self):
-        results = run_transfer(self.tables, self.baseline, cases={(1, 2)}, progress=quiet)
-        new = summary.transfer_steps_table(results).reset_index(drop=True)
-        old = expected("transfer_steps_uncertainty")
-        old = old[(old["source_year"] == 2017) & (old["trait"] == "N_kg_ha")].reset_index(drop=True)
-        self.assert_same_table(new, old)
+    def test_transfer_case_with_the_original_rule(self):
+        expected = self.same_case(read(EXPECTED_DIR, "transfer_steps_uncertainty"))
+        self.assert_same_table(self.transfer_case("original"), expected)
+
+    def test_transfer_case_with_the_corrected_rule(self):
+        stored = self.same_case(read(config.RESULTS_DIR, "transfer_steps_uncertainty"))
+        self.assert_same_table(self.transfer_case("corrected"), stored)
 
 
-class StoredResults(TableAssertions):
-    """Compare the tables in results/, written by the scripts, with the original run."""
+class OriginalRun(TableAssertions):
+    """Compare the tables of results/original_code with the saved outputs of the original run."""
 
     def test_all_uncertainty_steps(self):
-        self.assert_same_table(stored("transfer_steps_uncertainty"), expected("transfer_steps_uncertainty"))
-        self.assert_same_table(stored("selected_samples_uncertainty"), expected("selected_samples_uncertainty"))
+        for name in ("transfer_steps_uncertainty", "selected_samples_uncertainty"):
+            self.assert_same_table(read(ORIGINAL_DIR, name), read(EXPECTED_DIR, name))
 
-    def test_centroid_comparison_at_the_optimal_steps(self):
-        new = stored("transfer_steps_centroid")
-        old = expected("transfer_steps_centroid")
+    def test_centroid_comparison_at_the_selected_steps(self):
+        new = read(ORIGINAL_DIR, "transfer_steps_centroid")
+        old = read(EXPECTED_DIR, "transfer_steps_centroid")
         self.assert_same_table(
             new[new["selected_as_optimal"]].reset_index(drop=True),
             old[old["selected_as_optimal"]].reset_index(drop=True),
         )
 
     def test_only_the_known_centroid_steps_differ(self):
-        # A tie in a two-sample cluster: see "How close is the reproduction?" in the README.
+        # A tie in a two-sample cluster, explained at the end of the README.
         keys = ["source_year", "trait", "target_date", "samples_added"]
-        new = stored("transfer_steps_centroid").set_index(keys)["rmse_independent"]
-        old = expected("transfer_steps_centroid").set_index(keys)["rmse_independent"]
+        new = read(ORIGINAL_DIR, "transfer_steps_centroid").set_index(keys)["rmse_independent"]
+        old = read(EXPECTED_DIR, "transfer_steps_centroid").set_index(keys)["rmse_independent"]
         differing = new[(new - old).abs() > TOLERANCE].index.tolist()
         self.assertEqual(
             differing, [(2017, "N_perc_DM", "20141015", 6), (2017, "N_perc_DM", "20141015", 8)]
         )
+
+    def test_feature_selection(self):
+        for name in ("baseline_feature_selection", "transfer_feature_selection", "retained_bands"):
+            self.assert_same_table(read(ORIGINAL_DIR, name), read(EXPECTED_DIR, name))
 
     def test_values_printed_in_the_article(self):
         # Figure 4: samples selected per target date. Figure 3: percentages in the pie charts.
@@ -128,19 +152,38 @@ class StoredResults(TableAssertions):
             "N_perc_DM": [100.0, 100.0, 84.5, 100.0, 77.5],
             "N_kg_ha": [85.6, 87.7, 100.0, 82.9, 52.5],
         }
-        steps = stored("transfer_steps_uncertainty")
+        steps = read(ORIGINAL_DIR, "transfer_steps_uncertainty")
         steps = steps[steps["selected_as_optimal"]]
-        ratios = stored("optimal_ratios")
+        ratios = read(ORIGINAL_DIR, "optimal_ratios")
         for trait in config.TRAITS:
             self.assertEqual(steps.loc[steps["trait"] == trait, "samples_added"].tolist(), samples[trait])
-            published = np.array(percentages[trait])
             new = 100 * ratios.loc[ratios["trait"] == trait, "std_ratio"].to_numpy()
-            np.testing.assert_allclose(new, published, atol=0.05)
+            np.testing.assert_allclose(new, percentages[trait], atol=0.05)
 
-    def test_feature_selection(self):
-        self.assert_same_table(stored("baseline_feature_selection"), expected("baseline_feature_selection"))
-        self.assert_same_table(stored("transfer_feature_selection"), expected("transfer_feature_selection"))
-        self.assert_same_table(stored("retained_bands"), expected("retained_bands"))
+
+class CorrectedResults(unittest.TestCase):
+    """Check the statements of the README about the corrected values in results/."""
+
+    def setUp(self):
+        self.uncertainty = read(config.RESULTS_DIR, "transfer_steps_uncertainty")
+        self.centroid = read(config.RESULTS_DIR, "transfer_steps_centroid")
+        self.selected = self.uncertainty[self.uncertainty["selected_as_optimal"]].reset_index(drop=True)
+
+    def test_uncertainty_lowers_the_rmse_for_all_cases(self):
+        centroid = self.centroid[self.centroid["selected_as_optimal"]].reset_index(drop=True)
+        self.assertEqual(len(self.selected), 15)
+        self.assertTrue((self.selected["rmse_independent"] < centroid["rmse_independent"]).all())
+
+    def test_smallest_numbers_of_samples(self):
+        samples = self.selected.groupby("trait")["samples_added"].min()
+        self.assertEqual(samples["DM_dt_ha"], 8)
+        self.assertEqual(samples["N_perc_DM"], 4)
+        self.assertEqual(samples["N_kg_ha"], 4)
+
+    def test_gap_to_the_lowest_rmse(self):
+        gaps = 100 * (1 - read(config.RESULTS_DIR, "optimal_ratios")["rmse_ratio"])
+        self.assertLess(gaps.max(), 20)
+        self.assertLess(gaps.mean(), 6)
 
 
 if __name__ == "__main__":

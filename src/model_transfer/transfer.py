@@ -124,20 +124,23 @@ def choose_number_of_steps(uncertainty):
     return int(np.floor(np.nanmedian(steps)))
 
 
-def published_factor_choice(rmse_source, rmse_added):
-    """Return the position of the chosen number of factors.
+def choose_factors(rmse_source, rmse_added, factor_rule):
+    """Return the position of the number of factors with the lowest summed RMSE.
 
-    This keeps a quirk of the original code so that the published results are reproduced:
-    the summed errors are ordered by decreasing error on the added samples, but the
-    position of their minimum is then read as a position in the list of factor numbers.
-    The two orders often coincide, because that error tends to fall as factors are added.
+    The "original" rule keeps an error of the original code, needed only to reproduce the
+    values printed in the article: the summed errors are ordered by decreasing error on the
+    added samples, but the position of their minimum is then read as a position in the list
+    of factor numbers. The two orders often coincide, because that error tends to fall as
+    factors are added.
     """
+    if factor_rule == "corrected":
+        return int(np.nanargmin(np.add(rmse_source, rmse_added)))
     order = sorted(enumerate(rmse_added), key=lambda item: item[1], reverse=True)
     joint = [rmse_added[index] + rmse_source[index] for index, _ in order]
     return int(np.nanargmin(joint))
 
 
-def fit_repetition(source, target, calibration, validation, oob, added, unused, bands):
+def fit_repetition(source, target, calibration, validation, oob, added, unused, bands, factor_rule):
     """Fit one bootstrap repetition of a transferred model and return its outputs."""
     fit_rows = np.setdiff1d(calibration, oob)
     X_source, X_target = source.X[:, bands], target.X[:, bands]
@@ -150,7 +153,7 @@ def fit_repetition(source, target, calibration, validation, oob, added, unused, 
         model = plsr.fit(X_train, y_train, n_factors)
         errors_source.append(plsr.rmse(source.y[oob], plsr.predict(model, X_source[oob])))
         errors_added.append(plsr.rmse(target.y[added], plsr.predict(model, X_target[added])))
-    n_factors = candidates[published_factor_choice(errors_source, errors_added)]
+    n_factors = candidates[choose_factors(errors_source, errors_added, factor_rule)]
     model = plsr.fit(X_train, y_train, n_factors)
 
     pred = {
@@ -238,7 +241,7 @@ def step_uncertainty(outputs):
     return total
 
 
-def _run_case(tables, baseline, scores, dataset, trait_index, selection, best_fixed, progress):
+def _run_case(tables, baseline, scores, dataset, trait_index, selection, best_fixed, factor_rule, progress):
     year = config.SOURCE_YEARS[dataset]
     source, target = get_domains(tables, trait_index, year)
     level = "plot" if trait_index == 0 else "treatment"
@@ -283,7 +286,7 @@ def _run_case(tables, baseline, scores, dataset, trait_index, selection, best_fi
             for rep, seed in enumerate(seeds):
                 oob = plsr.out_of_bag_rows(source, calibration, seed)
                 fitted = fit_repetition(
-                    source, target, calibration, validation, oob, added, unused, bands
+                    source, target, calibration, validation, oob, added, unused, bands, factor_rule
                 )
                 store_repetition(outputs, rep, fitted, oob, validation, added, unused, bands)
             steps.append(outputs)
@@ -306,14 +309,23 @@ def _run_case(tables, baseline, scores, dataset, trait_index, selection, best_fi
     }
 
 
-def run_transfer(tables, baseline, selection="uncertainty", best=None, cases=None, progress=print):
+def run_transfer(
+    tables,
+    baseline,
+    selection="uncertainty",
+    best=None,
+    cases=None,
+    factor_rule=config.FACTOR_RULE,
+    progress=print,
+):
     """Return results[dataset][trait]; dataset 0 uses 2014 as source and 1 uses 2017.
 
     baseline holds the output of run_baseline, which gives the starting uncertainty.
     selection is "uncertainty" (largest uncertainty in each cluster) or "centroid" (closest
     to each cluster centroid). The centroid comparison takes best, the number of samples
     found with the uncertainty criterion. cases optionally limits the run to some
-    (dataset, trait) pairs; the other positions are None.
+    (dataset, trait) pairs; the other positions are None. factor_rule is explained in
+    choose_factors.
     """
     if selection == "centroid" and best is None:
         raise ValueError("the centroid comparison needs the best steps of the uncertainty run")
@@ -325,6 +337,6 @@ def run_transfer(tables, baseline, selection="uncertainty", best=None, cases=Non
                 continue
             best_fixed = None if best is None else best[dataset][trait_index]
             results[dataset][trait_index] = _run_case(
-                tables, baseline, scores, dataset, trait_index, selection, best_fixed, progress
+                tables, baseline, scores, dataset, trait_index, selection, best_fixed, factor_rule, progress
             )
     return results

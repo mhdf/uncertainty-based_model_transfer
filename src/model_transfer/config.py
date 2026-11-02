@@ -32,6 +32,10 @@ MIN_PCA_COMPONENTS = 3
 UNCERTAINTY_INTERVAL = 0.2
 VIP_ALPHA = 0.1
 
+# How the transferred models choose their number of PLS factors: "corrected", or "original"
+# to reproduce the values printed in the article. See the end of the README.
+FACTOR_RULE = "corrected"
+
 # Index 0 and 1 are the single-year datasets; index 2 is the benchmark with all dates.
 SPLIT_SEEDS = (325685, 73256841, 568)
 

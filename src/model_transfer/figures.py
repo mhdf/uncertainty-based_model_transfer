@@ -109,7 +109,7 @@ def figure_3(tables, transfer):
                 source_std.append(np.std(outputs["rmse_validation"]) / full_iqr)
                 full_rmse.append(np.mean(outputs["rmse_independent_validation"]) / iqr)
                 full_std.append(np.std(outputs["rmse_independent_validation"]) / iqr)
-                ratios.append(summary.optimal_ratios(case, date_index)["std_ratio"])
+                ratios.append(summary.optimal_ratios(case, date_index)["rmse_ratio"])
 
         positions = np.arange(len(labels))
         ax = axes[0, trait_index]
@@ -134,7 +134,7 @@ def figure_3(tables, transfer):
         ax.set_xticks(np.arange(0, 1.01, 0.25))
         ax.set_xlabel("Average RMSE / IQR")
     handles, names = axes[1, 0].get_legend_handles_labels()
-    handles.append(Patch(color="crimson", label="Ratio published in Figure 3 (see the README)"))
+    handles.append(Patch(color="crimson", label="Lowest RMSE / RMSE of the selected number of samples"))
     figure.legend(handles=handles, loc="outside lower center", ncol=3)
     _save(figure, "figure_3")
 
