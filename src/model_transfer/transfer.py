@@ -94,8 +94,10 @@ def select_in_clusters(scores, uncertainty, rows, seed, selection):
     for cluster in range(config.N_CLUSTERS):
         members = np.where(labels == cluster)[0]
         if selection == "centroid":
+            # Samples of a two-sample cluster are equally distant from its centroid. Rounding
+            # makes this tie independent of numerical noise: the first sample is taken.
             centroid = scores[members].mean(axis=0, keepdims=True)
-            position = int(np.argmin(cdist(scores[members], centroid)))
+            position = int(np.argmin(np.round(cdist(scores[members], centroid), 12)))
         else:
             position = int(np.nanargmax(uncertainty[members]))
         chosen.append(int(rows[members[position]]))

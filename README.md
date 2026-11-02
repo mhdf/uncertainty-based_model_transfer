@@ -61,11 +61,14 @@ This code is a rewrite of the original notebooks for current Python libraries. I
 | Baseline, 9 models | Identical, including the number of PLSR factors of each repetition |
 | Transfer with uncertainty, 100 selection steps | Identical samples at every step |
 | Feature selection, 24 models | Identical bands |
-| Transfer without uncertainty (Figure 5), 100 selection steps | Identical at all the numbers of samples used in the article; 5 later steps differ |
+| Transfer without uncertainty (Figure 5), 100 selection steps | Identical at all the numbers of samples used in the article; 2 later steps differ |
 
-"Identical" means that R², RMSE, VIP and predictions differ by less than 1e-8, which is numerical noise. The 5 steps that differ belong to two target dates (DOY 242 of 2017 for dry matter and DOY 288 of 2014 for N content) and come after the number of samples used for that date. Their cause was not found, and they do not enter any published result. The tests check the tables in `results/` against the original values.
+"Identical" means that R², RMSE, VIP and predictions differ by less than 1e-8, which is numerical noise. The tests check the tables in `results/` against the original values.
 
-scikit-learn 1.3 changed how k-means starts, which alters some clusters for the same random seed. To obtain the same samples, `transfer.py` keeps the earlier procedure.
+Two details were needed to obtain the same samples:
+
+- **Start of k-means.** scikit-learn 1.3 changed how k-means starts, which alters some clusters for the same random seed, so `transfer.py` keeps the earlier procedure.
+- **Ties in the comparison without uncertainty.** When a cluster has two samples, both are equally distant from its centroid, so numerical noise decided between them in the original run. Here the first sample is always taken, so that the result does not depend on the computer. This is why 2 steps differ (N content, source 2017, DOY 288 of 2014). They come after the number of samples used for that date and do not enter any published result.
 
 ## Differences between the code and the text of the article
 

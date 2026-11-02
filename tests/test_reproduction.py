@@ -99,13 +99,21 @@ class StoredResults(TableAssertions):
         self.assert_same_table(stored("selected_samples_uncertainty"), expected("selected_samples_uncertainty"))
 
     def test_centroid_comparison_at_the_optimal_steps(self):
-        # Two later centroid steps differ from the original run; they are not used by any
-        # published result. See "How close is the reproduction?" in the README.
         new = stored("transfer_steps_centroid")
         old = expected("transfer_steps_centroid")
         self.assert_same_table(
             new[new["selected_as_optimal"]].reset_index(drop=True),
             old[old["selected_as_optimal"]].reset_index(drop=True),
+        )
+
+    def test_only_the_known_centroid_steps_differ(self):
+        # A tie in a two-sample cluster: see "How close is the reproduction?" in the README.
+        keys = ["source_year", "trait", "target_date", "samples_added"]
+        new = stored("transfer_steps_centroid").set_index(keys)["rmse_independent"]
+        old = expected("transfer_steps_centroid").set_index(keys)["rmse_independent"]
+        differing = new[(new - old).abs() > TOLERANCE].index.tolist()
+        self.assertEqual(
+            differing, [(2017, "N_perc_DM", "20141015", 6), (2017, "N_perc_DM", "20141015", 8)]
         )
 
     def test_values_printed_in_the_article(self):
