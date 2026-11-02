@@ -1,0 +1,32 @@
+cff-version: 1.2.0
+message: "If you use this code, please cite the article below."
+title: "Uncertainty-based model transfer"
+type: software
+authors:
+  - family-names: Franceschini
+    given-names: Marston H. D.
+    orcid: "https://orcid.org/0000-0002-1295-4798"
+license: MIT
+repository-code: "https://github.com/mhdf/uncertainty-based_model_transfer"
+preferred-citation:
+  type: article
+  title: "Quantification of Grassland Biomass and Nitrogen Content through UAV Hyperspectral Imagery - Active Sample Selection for Model Transfer"
+  authors:
+    - family-names: Franceschini
+      given-names: Marston H. D.
+      orcid: "https://orcid.org/0000-0002-1295-4798"
+    - family-names: Becker
+      given-names: Rolf
+      orcid: "https://orcid.org/0000-0002-2150-0982"
+    - family-names: Wichern
+      given-names: Florian
+      orcid: "https://orcid.org/0000-0002-4962-4266"
+    - family-names: Kooistra
+      given-names: Lammert
+      orcid: "https://orcid.org/0000-0001-5549-5993"
+  journal: Drones
+  year: 2022
+  volume: 6
+  issue: 3
+  start: 73
+  doi: 10.3390/drones6030073
