@@ -1,0 +1,4 @@
+# Keep the published tables and the expected values byte for byte
+data/*.csv -text
+tests/expected/*.csv -text
+results/*.csv -text
