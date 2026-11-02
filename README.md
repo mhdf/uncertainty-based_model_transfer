@@ -66,7 +66,7 @@ The figures use a simpler layout than the article. Figure 1 (the study site) and
 | `results/original_code/` | The tables obtained with the code used for the article |
 | `tests/` | Checks, with the values of the original run in `tests/expected/` |
 | `tools/` | The script that exported those values, which needs the original files |
-| `original_notebooks/` | The original notebooks, kept for reference only |
+| `notebooks/` | The notebooks used for the article, reorganized and kept for reference only |
 
 The complete dataset, including the hyperspectral images, is available at https://doi.org/10.4121/19188872.v1.
 
